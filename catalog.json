@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Mutual Non-Disclosure Agreement",
+    "description": "Bilateral confidentiality agreement for two parties sharing sensitive information, covering mutual obligations, permitted disclosures, and term.",
+    "filename": "templates/Mutual-NDA.md"
+  },
+  {
+    "name": "Mutual NDA Cover Page",
+    "description": "Front-matter and signature block cover page that accompanies the Mutual Non-Disclosure Agreement, capturing party details and effective date.",
+    "filename": "templates/Mutual-NDA-coverpage.md"
+  },
+  {
+    "name": "Cloud Service Agreement",
+    "description": "Standard SaaS and cloud subscription agreement covering access rights, acceptable use, intellectual property, confidentiality, payment terms, and liability limitations.",
+    "filename": "templates/CSA.md"
+  },
+  {
+    "name": "Design Partner Agreement",
+    "description": "Agreement for early-stage or beta product customers who provide feedback, with limited access rights, confidentiality obligations, and feedback IP provisions.",
+    "filename": "templates/design-partner-agreement.md"
+  },
+  {
+    "name": "Service Level Agreement",
+    "description": "Defines uptime commitments, incident response procedures, service credit calculations, and measurement methodology for cloud and SaaS services.",
+    "filename": "templates/sla.md"
+  },
+  {
+    "name": "Professional Services Agreement",
+    "description": "Covers consulting, implementation, and custom development engagements including statement of work framework, deliverables, IP ownership, change orders, and payment terms.",
+    "filename": "templates/psa.md"
+  },
+  {
+    "name": "Data Processing Agreement",
+    "description": "GDPR-compliant data processing addendum covering controller and processor roles, sub-processor management, data subject rights, security measures, and international data transfers.",
+    "filename": "templates/DPA.md"
+  },
+  {
+    "name": "Partnership Agreement",
+    "description": "Reseller, channel, and referral partnership agreement covering partner tiers, co-selling arrangements, revenue share, marketing rights, and program terms.",
+    "filename": "templates/Partnership-Agreement.md"
+  },
+  {
+    "name": "Software License Agreement",
+    "description": "On-premise or perpetual software licensing agreement covering grant of license, use restrictions, maintenance and support obligations, IP ownership, and warranty terms.",
+    "filename": "templates/Software-License-Agreement.md"
+  },
+  {
+    "name": "Pilot Agreement",
+    "description": "Time-limited trial and proof-of-concept agreement with defined pilot scope, success criteria, data handling provisions, and conversion terms.",
+    "filename": "templates/Pilot-Agreement.md"
+  },
+  {
+    "name": "Business Associate Agreement",
+    "description": "HIPAA-compliant agreement defining the obligations of a business associate handling Protected Health Information (PHI) on behalf of a covered entity.",
+    "filename": "templates/BAA.md"
+  },
+  {
+    "name": "AI Addendum",
+    "description": "Contractual addendum addressing AI and ML product usage, data training restrictions, output ownership, bias and fairness obligations, and AI-specific liability.",
+    "filename": "templates/AI-Addendum.md"
+  }
+]
