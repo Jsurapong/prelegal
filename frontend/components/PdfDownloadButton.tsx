@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { NdaFormData, formatDate } from "@/lib/nda-types";
 
+// Module-level flag prevents two concurrent captures of the same DOM element
+let isGenerating = false;
+
+function sanitizeFilename(s: string): string {
+  return s
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 40);
+}
+
 interface Props {
   data: NdaFormData;
 }
@@ -11,55 +21,51 @@ export default function PdfDownloadButton({ data }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleDownload() {
+    if (isGenerating) return;
+    isGenerating = true;
     setLoading(true);
+
     try {
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
-      ]);
+      const { default: jsPDF } = await import("jspdf");
+      // html2canvas is loaded automatically by jsPDF's html() plugin
+      await import("html2canvas");
 
       const element = document.getElementById("nda-document");
-      if (!element) throw new Error("Document element not found");
+      if (!element) throw new Error("#nda-document not found");
 
-      // Capture at 2× for retina quality
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+
+      // A4 = 595 x 842 pt; 40 pt margins each side → content width 515 pt
+      await new Promise<void>((resolve, reject) => {
+        pdf.html(element, {
+          callback: (doc) => {
+            try {
+              const p1 = sanitizeFilename(data.party1.company || "Party1");
+              const p2 = sanitizeFilename(data.party2.company || "Party2");
+              const ds = formatDate(data.effectiveDate)
+                .replace(/,/g, "")
+                .replace(/\s+/g, "-");
+              doc.save(`mutual-nda-${p1}-${p2}-${ds}.pdf`);
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          },
+          margin: [40, 40, 40, 40],
+          // 'text' mode avoids splitting a text run across pages
+          autoPaging: "text",
+          x: 0,
+          y: 0,
+          width: 515,
+          windowWidth: element.scrollWidth || 800,
+        });
       });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgW = pageW;
-      const imgH = (canvas.height * imgW) / canvas.width;
-
-      // Paginate if content is taller than one page
-      let yOffset = 0;
-      let remaining = imgH;
-
-      while (remaining > 0) {
-        if (yOffset > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -yOffset, imgW, imgH);
-        yOffset += pageH;
-        remaining -= pageH;
-      }
-
-      // Filename: mutual-nda-PartyA-PartyB.pdf
-      const p1 = (data.party1.company || "Party1").replace(/\s+/g, "-");
-      const p2 = (data.party2.company || "Party2").replace(/\s+/g, "-");
-      const dateStr = formatDate(data.effectiveDate).replace(/\s/g, "-").replace(",", "");
-      pdf.save(`mutual-nda-${p1}-${p2}-${dateStr}.pdf`);
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("PDF generation failed. Please try again.");
     } finally {
       setLoading(false);
+      isGenerating = false;
     }
   }
 

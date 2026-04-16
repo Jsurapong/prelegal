@@ -23,33 +23,40 @@ export interface NdaFormData {
   party2: PartyInfo;
 }
 
-function today(): string {
-  return new Date().toISOString().split("T")[0];
-}
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
-export const DEFAULT_FORM_DATA: NdaFormData = {
-  purpose:
-    "Evaluating whether to enter into a business relationship with the other party.",
-  effectiveDate: today(),
-  mndaTermType: "expires",
-  mndaTermYears: "1",
-  confidentialityTermType: "expires",
-  confidentialityTermYears: "1",
-  governingLaw: "",
-  jurisdiction: "",
-  modifications: "",
-  party1: { company: "", printName: "", title: "", noticeAddress: "", date: today() },
-  party2: { company: "", printName: "", title: "", noticeAddress: "", date: today() },
-};
+/** Returns a fresh NdaFormData with today's date — call at component mount time. */
+export function createDefaultFormData(): NdaFormData {
+  const t = new Date().toISOString().split("T")[0];
+  return {
+    purpose:
+      "Evaluating whether to enter into a business relationship with the other party.",
+    effectiveDate: t,
+    mndaTermType: "expires",
+    mndaTermYears: "1",
+    confidentialityTermType: "expires",
+    confidentialityTermYears: "1",
+    governingLaw: "",
+    jurisdiction: "",
+    modifications: "",
+    party1: { company: "", printName: "", title: "", noticeAddress: "", date: t },
+    party2: { company: "", printName: "", title: "", noticeAddress: "", date: t },
+  };
+}
 
 export function formatDate(iso: string): string {
   if (!iso) return "_______________";
-  const [y, m, d] = iso.split("-");
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-  return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
+  const parts = iso.split("-");
+  if (parts.length !== 3) return "_______________";
+  const [y, m, d] = parts;
+  const monthIndex = parseInt(m, 10) - 1;
+  const dayNum = parseInt(d, 10);
+  if (isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) return "_______________";
+  if (isNaN(dayNum)) return "_______________";
+  return `${MONTHS[monthIndex]} ${dayNum}, ${y}`;
 }
 
 export function mndaTermText(data: NdaFormData): string {

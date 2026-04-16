@@ -69,7 +69,7 @@ function PreviewContent() {
 
           <div className="flex items-center gap-3 no-pdf">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push("/")}
               className="flex items-center gap-1.5 px-4 py-2 text-navy/70 border border-navy/20 rounded font-sans text-sm hover:bg-navy/5 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,7 +115,7 @@ function PreviewContent() {
         {/* Bottom action bar */}
         <div className="mt-6 flex justify-end gap-3 no-pdf animate-fade-in-up animate-delay-200">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/")}
             className="px-4 py-2.5 text-navy/70 border border-navy/20 rounded font-sans text-sm hover:bg-navy/5 transition-colors"
           >
             Edit Details
