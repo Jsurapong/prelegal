@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 hours
     database_path: str = "data/prelegal.db"
+    openrouter_api_key: str = ""
 
     model_config = {"env_file": ".env"}
 

@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 
 from app.auth import router as auth_router
+from app.chat import router as chat_router
 from app.config import settings
 from app.database import init_db
 
@@ -38,6 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(chat_router, prefix="/api/chat", tags=["chat"])
 
 
 @app.get("/api/health", tags=["health"])
