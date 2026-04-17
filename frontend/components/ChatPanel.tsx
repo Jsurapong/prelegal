@@ -16,10 +16,20 @@ interface Props {
 export default function ChatPanel({ messages, isLoading, onSend }: Props) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevLoadingRef = useRef(isLoading);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  // Auto-focus the textarea when AI response arrives (loading -> not loading)
+  useEffect(() => {
+    if (prevLoadingRef.current && !isLoading) {
+      textareaRef.current?.focus();
+    }
+    prevLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,6 +96,7 @@ export default function ChatPanel({ messages, isLoading, onSend }: Props) {
         className="border-t border-navy/10 bg-white px-4 py-3 flex gap-2 items-end"
       >
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

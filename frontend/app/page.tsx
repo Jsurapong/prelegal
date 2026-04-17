@@ -1,22 +1,22 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { NdaFormData, createDefaultFormData } from "@/lib/nda-types";
-import { serializeNdaFields, mergeNdaFields } from "@/lib/nda-fields-mapper";
+import { GenericDocFields, mergeDocFields } from "@/lib/doc-types";
 import { sendChatMessage, ChatApiMessage } from "@/lib/chat-api";
 import ChatPanel, { Message } from "@/components/ChatPanel";
-import NdaPreviewPanel from "@/components/NdaPreviewPanel";
+import DocPreviewPanel from "@/components/DocPreviewPanel";
 
 const WELCOME_MESSAGE =
-  "Hello! I'll help you draft a Mutual Non-Disclosure Agreement. " +
-  "Let's start — what's the purpose of this NDA? For example, " +
-  '"evaluating a potential business partnership" or "exploring an acquisition."';
+  "Hello! I'm your legal document assistant. What kind of agreement do you need? " +
+  "I can help you with NDAs, cloud service agreements, data processing agreements, " +
+  "partnership agreements, and more. Just tell me what you're looking for!";
 
-export default function NdaChatPage() {
+export default function DocumentChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: WELCOME_MESSAGE },
   ]);
-  const [ndaData, setNdaData] = useState<NdaFormData>(createDefaultFormData);
+  const [documentType, setDocumentType] = useState<string | null>(null);
+  const [docFields, setDocFields] = useState<GenericDocFields>({});
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "preview">("chat");
 
@@ -27,7 +27,6 @@ export default function NdaChatPage() {
       setIsLoading(true);
 
       try {
-        // Build the API messages list (exclude system messages)
         const apiMessages: ChatApiMessage[] = [...messages, userMsg]
           .filter((m): m is Message & { role: "user" | "assistant" } =>
             m.role === "user" || m.role === "assistant"
@@ -36,14 +35,23 @@ export default function NdaChatPage() {
 
         const response = await sendChatMessage(
           apiMessages,
-          serializeNdaFields(ndaData),
+          documentType,
+          docFields,
         );
 
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: response.reply },
         ]);
-        setNdaData((prev) => mergeNdaFields(prev, response.nda_fields));
+
+        // Update document type if the AI selected one
+        if (response.document_type && response.document_type !== documentType) {
+          setDocumentType(response.document_type);
+          // Clear stale fields from the previous document type
+          setDocFields(mergeDocFields({}, response.doc_fields));
+        } else {
+          setDocFields((prev) => mergeDocFields(prev, response.doc_fields));
+        }
       } catch (err) {
         const detail =
           err instanceof Error ? err.message : "Something went wrong.";
@@ -55,7 +63,7 @@ export default function NdaChatPage() {
         setIsLoading(false);
       }
     },
-    [messages, ndaData],
+    [messages, documentType, docFields],
   );
 
   return (
@@ -74,7 +82,7 @@ export default function NdaChatPage() {
             </span>
           </div>
           <span className="text-xs font-sans text-navy/40 tracking-widest uppercase hidden sm:block">
-            Mutual NDA Creator
+            Legal Document Creator
           </span>
         </div>
       </header>
@@ -124,7 +132,7 @@ export default function NdaChatPage() {
             activeTab !== "preview" ? "hidden md:flex" : "flex flex-col"
           }`}
         >
-          <NdaPreviewPanel data={ndaData} />
+          <DocPreviewPanel documentType={documentType} fields={docFields} />
         </div>
       </div>
     </div>

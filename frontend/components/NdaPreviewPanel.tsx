@@ -3,11 +3,12 @@
 import dynamic from "next/dynamic";
 import NdaPreview from "./NdaPreview";
 import { NdaFormData } from "@/lib/nda-types";
+import { serializeNdaFields } from "@/lib/nda-fields-mapper";
 
 const PdfDownloadButton = dynamic(() => import("./PdfDownloadButton"), {
   ssr: false,
   loading: () => (
-    <span className="text-xs font-sans text-navy/40">Loading PDF…</span>
+    <span className="text-xs font-sans text-navy/40">Loading PDF...</span>
   ),
 });
 
@@ -16,6 +17,13 @@ interface Props {
 }
 
 export default function NdaPreviewPanel({ data }: Props) {
+  // Convert NdaFormData to generic fields for PdfDownloadButton
+  const genericFields: Record<string, string> = {};
+  const serialized = serializeNdaFields(data);
+  for (const [k, v] of Object.entries(serialized)) {
+    if (v) genericFields[k] = v;
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -23,7 +31,11 @@ export default function NdaPreviewPanel({ data }: Props) {
         <span className="text-xs font-sans font-semibold tracking-widest uppercase text-navy/40">
           Document Preview
         </span>
-        <PdfDownloadButton data={data} />
+        <PdfDownloadButton
+          elementId="nda-document"
+          documentType="mutual_nda"
+          fields={genericFields}
+        />
       </div>
 
       {/* Scrollable document */}

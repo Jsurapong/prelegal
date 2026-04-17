@@ -58,10 +58,8 @@ Note: the existing prototype uses a slightly different Tailwind palette (`navy: 
 ## What has been implemented
 
 ### PREL-3 — Mutual NDA Creator (frontend prototype)
-- `/` — NDA form (`NdaForm.tsx`): collects all fields for a Mutual NDA (purpose, term, parties, governing law, etc.)
+- `NdaForm.tsx` still exists but is no longer rendered on `/` (replaced by AI chat in PREL-5)
 - `/preview` — document preview (`NdaPreview.tsx`): renders the full Common Paper MNDA v1.0 with filled fields; PDF export via jsPDF + html2canvas (`PdfDownloadButton.tsx`)
-- Data flows entirely client-side via URL query string (`?data=...`); no backend calls yet
-- 69 unit tests (Jest + Testing Library) covering types, form, and preview components
 - Playwright e2e config present (baseURL `http://localhost:3001`)
 
 ### PREL-4 — V1 Technical Foundation
@@ -74,3 +72,20 @@ Note: the existing prototype uses a slightly different Tailwind palette (`navy: 
 - **Docker**: multi-stage `Dockerfile` (Node 20 builds frontend → Python 3.13 serves via FastAPI); `docker-compose.yml`; `.dockerignore`
 - **Scripts**: all six start/stop scripts in `scripts/`
 - `.env.example` requires `OPENROUTER_API_KEY` and `SECRET_KEY`
+
+### PREL-5 — AI Chat (Mutual NDA only)
+- `/` — Single-page split layout: AI chat panel (left, 42%) + live NDA document preview (right, 58%) with mobile tab switching
+- **Backend**: `POST /api/chat` using LiteLLM (`openrouter/openai/gpt-oss-120b` via Cerebras) with structured output (`NdaAiResponse`). Dynamic system prompt tracks filled vs empty fields. Message history capped at 40 turns.
+- **Frontend components**: `ChatPanel.tsx` (messages, input, send), `NdaPreviewPanel.tsx` (wraps `NdaPreview` + `PdfDownloadButton`)
+- **Data layer**: `nda-fields-mapper.ts` converts between nested `NdaFormData` (frontend) and flat snake_case `NdaFields` (backend) with runtime enum validation; `chat-api.ts` wraps the fetch call
+- `NdaPreview.tsx` and `PdfDownloadButton.tsx` reused unchanged — preview updates live as AI fills fields
+
+### PREL-6 — Expand to all supported legal document types
+- **Document registry** (`backend/app/document_registry.py`): Central source of truth for all 11 document types (all catalog entries except the NDA Cover Page companion). Each entry has doc_id, display_name, template filename, field definitions with labels/hints/allowed_values, and system prompt intro.
+- **Generic chat endpoint** (`POST /api/chat`): Two-phase flow — (1) document selection phase (AI identifies doc type from conversation), (2) field collection phase (AI collects fields per registry definition). Dynamic Pydantic models via `create_model()` for LLM structured output. System prompt always instructs AI to ask follow-on questions.
+- **Template serving** (`GET /api/templates/{doc_id}`, `GET /api/templates/catalog`): Serves raw markdown templates and catalog list.
+- **Generic frontend**: `page.tsx` manages generic `Record<string, string>` field state + `documentType` (null until AI selects). `DocPreviewPanel.tsx` routes NDA to legacy `NdaPreview` and all other types to `TemplateRenderer`.
+- **TemplateRenderer** (`frontend/components/TemplateRenderer.tsx`): Fetches markdown template, parses `<span class="*_link">` field-reference elements, interpolates field values inline, renders cover page section + standard terms. Handles `keyterms_link`, `coverpage_link`, `orderform_link`, `businessterms_link` span classes.
+- **UX enhancements**: Auto-focus textarea after AI response (`ChatPanel.tsx`). AI always asks follow-on questions via system prompt instructions.
+- **Docker**: `Dockerfile` updated to include `templates/` and `catalog.json` in the image.
+- 128 tests total (101 frontend + 27 backend)

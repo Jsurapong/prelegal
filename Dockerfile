@@ -20,6 +20,10 @@ RUN uv sync --frozen --no-dev
 # Copy backend application
 COPY backend/app ./app
 
+# Copy templates and catalog for the document registry
+COPY templates/ ./templates/
+COPY catalog.json ./catalog.json
+
 # Copy the static Next.js build into the backend's static directory
 COPY --from=frontend-builder /frontend/out ./static
 

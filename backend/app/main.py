@@ -11,6 +11,8 @@ from app.auth import router as auth_router
 from app.chat import router as chat_router
 from app.config import settings
 from app.database import init_db
+from app.document_registry import validate_registry
+from app.template_router import router as template_router
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ async def lifespan(app: FastAPI):
             "Set a strong SECRET_KEY environment variable before deploying."
         )
     init_db()
+    validate_registry()
     yield
 
 
@@ -40,6 +43,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat_router, prefix="/api/chat", tags=["chat"])
+app.include_router(template_router, prefix="/api/templates", tags=["templates"])
 
 
 @app.get("/api/health", tags=["health"])

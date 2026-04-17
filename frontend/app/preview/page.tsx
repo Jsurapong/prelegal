@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { NdaFormData } from "@/lib/nda-types";
+import { serializeNdaFields } from "@/lib/nda-fields-mapper";
 import NdaPreview from "@/components/NdaPreview";
 
 const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton"), {
@@ -14,10 +15,20 @@ const PdfDownloadButton = dynamic(() => import("@/components/PdfDownloadButton")
       className="flex items-center gap-2 px-5 py-2.5 bg-brass text-white rounded font-sans text-sm font-medium opacity-60 cursor-wait"
     >
       <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-      Preparing PDF…
+      Preparing PDF...
     </button>
   ),
 });
+
+/** Convert NdaFormData to generic fields for PdfDownloadButton. */
+function ndaToGenericFields(data: NdaFormData): Record<string, string> {
+  const result: Record<string, string> = {};
+  const serialized = serializeNdaFields(data);
+  for (const [k, v] of Object.entries(serialized)) {
+    if (v) result[k] = v;
+  }
+  return result;
+}
 
 function PreviewContent() {
   const params = useSearchParams();
@@ -55,6 +66,8 @@ function PreviewContent() {
     );
   }
 
+  const genericFields = ndaToGenericFields(data);
+
   return (
     <div className="min-h-screen bg-parchment-texture">
       {/* Header */}
@@ -77,7 +90,11 @@ function PreviewContent() {
               </svg>
               Edit
             </button>
-            <PdfDownloadButton data={data} />
+            <PdfDownloadButton
+              elementId="nda-document"
+              documentType="mutual_nda"
+              fields={genericFields}
+            />
           </div>
         </div>
       </header>
@@ -120,7 +137,11 @@ function PreviewContent() {
           >
             Edit Details
           </button>
-          <PdfDownloadButton data={data} />
+          <PdfDownloadButton
+            elementId="nda-document"
+            documentType="mutual_nda"
+            fields={genericFields}
+          />
         </div>
       </div>
     </div>
@@ -134,7 +155,7 @@ export default function PreviewPage() {
         <div className="min-h-screen bg-parchment-texture flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-navy/30 border-t-navy rounded-full animate-spin mx-auto mb-3" />
-            <p className="font-sans text-navy/60 text-sm">Loading document…</p>
+            <p className="font-sans text-navy/60 text-sm">Loading document...</p>
           </div>
         </div>
       }

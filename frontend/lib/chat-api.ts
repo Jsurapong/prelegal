@@ -1,5 +1,3 @@
-import { NdaFieldsPayload } from "./nda-fields-mapper";
-
 export interface ChatApiMessage {
   role: "user" | "assistant";
   content: string;
@@ -7,18 +5,24 @@ export interface ChatApiMessage {
 
 export interface ChatApiResponse {
   reply: string;
-  nda_fields: NdaFieldsPayload;
+  document_type: string | null;
+  doc_fields: Record<string, string | null>;
 }
 
 export async function sendChatMessage(
   messages: ChatApiMessage[],
-  currentFields: NdaFieldsPayload,
+  documentType: string | null,
+  currentFields: Record<string, string | null>,
 ): Promise<ChatApiResponse> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   const res = await fetch(`${apiUrl}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, current_fields: currentFields }),
+    body: JSON.stringify({
+      messages,
+      document_type: documentType,
+      current_fields: currentFields,
+    }),
   });
 
   if (!res.ok) {

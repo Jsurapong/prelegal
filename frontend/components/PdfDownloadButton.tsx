@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { NdaFormData, formatDate } from "@/lib/nda-types";
-
-// Module-level flag prevents two concurrent captures of the same DOM element
-let isGenerating = false;
+import { GenericDocFields } from "@/lib/doc-types";
 
 function sanitizeFilename(s: string): string {
   return s
@@ -14,45 +11,54 @@ function sanitizeFilename(s: string): string {
 }
 
 interface Props {
-  data: NdaFormData;
+  elementId: string;
+  documentType: string;
+  fields: GenericDocFields;
 }
 
-export default function PdfDownloadButton({ data }: Props) {
+export default function PdfDownloadButton({ elementId, documentType, fields }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleDownload() {
-    if (isGenerating) return;
-    isGenerating = true;
+    if (loading) return;
     setLoading(true);
 
     try {
       const { default: jsPDF } = await import("jspdf");
-      // html2canvas is loaded automatically by jsPDF's html() plugin
       await import("html2canvas");
 
-      const element = document.getElementById("nda-document");
-      if (!element) throw new Error("#nda-document not found");
+      const element = document.getElementById(elementId);
+      if (!element) throw new Error(`#${elementId} not found`);
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
 
-      // A4 = 595 x 842 pt; 40 pt margins each side → content width 515 pt
       await new Promise<void>((resolve, reject) => {
         pdf.html(element, {
           callback: (doc) => {
             try {
-              const p1 = sanitizeFilename(data.party1.company || "Party1");
-              const p2 = sanitizeFilename(data.party2.company || "Party2");
-              const ds = formatDate(data.effectiveDate)
-                .replace(/,/g, "")
-                .replace(/\s+/g, "-");
-              doc.save(`mutual-nda-${p1}-${p2}-${ds}.pdf`);
+              const docSlug = sanitizeFilename(documentType.replace(/_/g, "-"));
+              // Try to find party names from common field patterns
+              const party1 =
+                sanitizeFilename(
+                  fields.party1_company ||
+                    fields.provider_company ||
+                    fields.company_company ||
+                    "Party1",
+                );
+              const party2 =
+                sanitizeFilename(
+                  fields.party2_company ||
+                    fields.customer_company ||
+                    fields.partner_company ||
+                    "Party2",
+                );
+              doc.save(`${docSlug}-${party1}-${party2}.pdf`);
               resolve();
             } catch (e) {
               reject(e);
             }
           },
           margin: [40, 40, 40, 40],
-          // 'text' mode avoids splitting a text run across pages
           autoPaging: "text",
           x: 0,
           y: 0,
@@ -65,7 +71,6 @@ export default function PdfDownloadButton({ data }: Props) {
       alert("PDF generation failed. Please try again.");
     } finally {
       setLoading(false);
-      isGenerating = false;
     }
   }
 
@@ -78,7 +83,7 @@ export default function PdfDownloadButton({ data }: Props) {
       {loading ? (
         <>
           <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          Generating…
+          Generating...
         </>
       ) : (
         <>
