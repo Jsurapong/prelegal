@@ -39,3 +39,26 @@ class GenericChatResponse(BaseModel):
     reply: str
     document_type: str | None = None
     doc_fields: dict[str, str | None] = {}
+
+
+# ── Documents ────────────────────────────────────────────────────────────────
+
+
+class SaveDocumentRequest(BaseModel):
+    id: int | None = None
+    title: str
+    document_type: str
+    doc_fields: dict[str, str | None] = {}
+    messages: list[ChatMessage] = []
+
+
+class DocumentSummary(BaseModel):
+    id: int
+    title: str
+    document_type: str
+    updated_at: str
+
+
+class DocumentDetail(DocumentSummary):
+    doc_fields: dict[str, str | None] = {}
+    messages: list[ChatMessage] = []

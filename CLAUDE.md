@@ -55,37 +55,88 @@ Backend available at http://localhost:8000
 
 Note: the existing prototype uses a slightly different Tailwind palette (`navy: #15274a`, `brass: #b5821a`). New pages should use the canonical colors above.
 
-## What has been implemented
+## Current Architecture
 
-### PREL-3 — Mutual NDA Creator (frontend prototype)
-- `NdaForm.tsx` still exists but is no longer rendered on `/` (replaced by AI chat in PREL-5)
-- `/preview` — document preview (`NdaPreview.tsx`): renders the full Common Paper MNDA v1.0 with filled fields; PDF export via jsPDF + html2canvas (`PdfDownloadButton.tsx`)
-- Playwright e2e config present (baseURL `http://localhost:3001`)
+### Backend (`backend/app/`)
 
-### PREL-4 — V1 Technical Foundation
-- **Backend** (`backend/app/`): FastAPI with lifespan-based SQLite init, JWT auth (`python-jose` + `passlib[bcrypt]`), two endpoints:
+- **FastAPI** with lifespan-based SQLite init, CORS for localhost:3000/3001
+- **Auth** (`auth.py`): JWT auth via `python-jose` + `passlib[bcrypt]`
   - `POST /api/auth/signup` → creates user, returns JWT
   - `POST /api/auth/signin` → verifies password, returns JWT
-  - `GET /api/health`
-  - Static Next.js build served from `backend/static/` via `StaticFiles(html=True)`
-- **Frontend**: `output: 'export'` static build; `/login` and `/signup` pages calling the backend auth API; JWT stored in `localStorage`; `NEXT_PUBLIC_API_URL` env var for local dev
-- **Docker**: multi-stage `Dockerfile` (Node 20 builds frontend → Python 3.13 serves via FastAPI); `docker-compose.yml`; `.dockerignore`
-- **Scripts**: all six start/stop scripts in `scripts/`
+  - `get_current_user` dependency — decodes JWT Bearer token, returns user email. Used by documents router.
+- **Chat** (`chat.py`): Generic multi-document AI chat endpoint
+  - `POST /api/chat` — two-phase flow:
+    - Phase 1 (document selection): `document_type` is null, AI identifies what the user needs from the catalog. Returns `selected_document_type` in the response.
+    - Phase 2 (field collection): `document_type` is set, AI collects fields per document registry definition. Returns populated `doc_fields`.
+  - Request: `{ messages, document_type, current_fields }` (`GenericChatRequest`)
+  - Response: `{ reply, document_type, doc_fields }` (`GenericChatResponse`)
+  - Uses LiteLLM (`openrouter/openai/gpt-oss-120b` via Cerebras) with dynamic Pydantic models built via `create_model()` for structured output. Fields with `allowed_values` use `Literal` types. Message history capped at 40 turns.
+  - System prompt always instructs AI to ask follow-on questions when fields are still empty.
+- **Document registry** (`document_registry.py`): Single source of truth for all 11 document types. Each `DocumentType` entry has: `doc_id`, `display_name`, `description`, `template_filename`, `fields` (tuple of `FieldDef` with key/label/hint/optional/allowed_values), and `system_intro`.
+- **Template router** (`template_router.py`):
+  - `GET /api/templates/catalog` → list of `{ doc_id, display_name, description }`
+  - `GET /api/templates/{doc_id}` → raw markdown template content
+- **Health**: `GET /api/health`
+- Static Next.js build served from `backend/static/` via `StaticFiles(html=True)`
+- **Config** (`config.py`): pydantic-settings reading from `.env` — `SECRET_KEY`, `OPENROUTER_API_KEY`, DB path, JWT settings
+- **Documents** (`documents.py`): CRUD router for saved documents
+  - `POST /api/documents/` — create or update a document (upsert via optional `id`)
+  - `GET /api/documents/` — list user's documents (newest first)
+  - `GET /api/documents/{id}` — load full document with fields and messages
+  - `DELETE /api/documents/{id}` — delete a document
+  - All endpoints require JWT via `get_current_user` dependency
+- **Database** (`database.py`): SQLite with `users` and `documents` tables, created fresh each Docker container start
+
+### Frontend (`frontend/`)
+
+- **Next.js 14** App Router, TypeScript, Tailwind CSS, `output: 'export'` static build
+- **Routes**:
+  - `/` — Main AI chat + documents sidebar + live document preview (three-column: sidebar 240px left, chat 42%, preview flex-1, mobile tab switching + drawer sidebar)
+  - `/preview` — Standalone NDA preview with URL-encoded data (legacy from PREL-3)
+  - `/login`, `/signup` — Auth pages calling backend JWT API, use `useAuth()` context
+- **Core components**:
+  - `ChatPanel.tsx` — Chat UI (messages, textarea input, typing indicator). Auto-focuses textarea after AI response.
+  - `DocPreviewPanel.tsx` — Unified preview panel. Routes `mutual_nda` to `NdaPreview` (hand-crafted JSX) and all other types to `TemplateRenderer`. Shows placeholder state when no document type is selected.
+  - `DocumentsSidebar.tsx` — Saved documents list with load/new/delete actions. Desktop: fixed left panel. Mobile: off-canvas drawer.
+  - `DraftDisclaimer.tsx` — Permanent footer banner warning documents are drafts requiring legal review. Rendered in root `layout.tsx`.
+  - `SignInPromptModal.tsx` — Modal prompting unauthenticated users to sign in (shown once after first AI document selection).
+  - `TemplateRenderer.tsx` — Generic markdown template renderer. Fetches template from `/api/templates/{doc_id}`, parses `<span class="*_link">` elements (keyterms_link, coverpage_link, orderform_link, businessterms_link), interpolates field values inline. Renders cover page / key terms section above standard terms.
+  - `NdaPreview.tsx` — Hand-crafted JSX rendering the full Common Paper MNDA v1.0 with inline field interpolation (used only for NDA).
+  - `NdaPreviewPanel.tsx` — Wraps `NdaPreview` + `PdfDownloadButton` (used by legacy `/preview` route).
+  - `PdfDownloadButton.tsx` — PDF export via jsPDF + html2canvas, accepts generic `elementId`/`documentType`/`fields` props.
+- **Data layer**:
+  - `auth-context.tsx` — `AuthProvider` + `useAuth()` hook. Reads JWT from `localStorage`, parses email via `atob`, checks `exp` claim on load (clears expired tokens). Provides `{ token, email, isAuthenticated, login, logout }`.
+  - `documents-api.ts` — Fetch wrappers for documents CRUD: `listDocuments`, `saveDocument`, `loadDocument`, `deleteDocument`. All send `Authorization: Bearer` header.
+  - `doc-types.ts` — `GenericDocFields = Record<string, string>`, `mergeDocFields()` for null-safe merging of AI responses
+  - `chat-api.ts` — Fetch wrapper for `POST /api/chat` with `{ messages, document_type, current_fields }`
+  - `nda-types.ts` — `NdaFormData` interface (nested camelCase), used by NDA preview adapter in `DocPreviewPanel`
+  - `nda-fields-mapper.ts` — Bidirectional conversion between `NdaFormData` (frontend) and flat snake_case (backend), used by legacy NDA preview path and `/preview` route
+- **Page state** (`page.tsx`): `messages`, `documentType` (null until AI selects), `docFields` (generic record), `isLoading`, `activeTab`, `savedDocs`, `activeDocumentId`, `sidebarOpen`, `showSignInPrompt`. Auto-saves to backend after each AI response when authenticated (with save mutex to prevent duplicate creation). When document type changes, stale fields are cleared.
+
+### Infrastructure
+
+- **Docker**: Multi-stage `Dockerfile` (Node 20 builds frontend → Python 3.13 serves via FastAPI). Includes `templates/` and `catalog.json` in the image. `docker-compose.yml`, `.dockerignore`.
+- **Scripts**: `scripts/start-{mac,linux,windows}` and `scripts/stop-{mac,linux,windows}` for Docker management.
 - `.env.example` requires `OPENROUTER_API_KEY` and `SECRET_KEY`
 
-### PREL-5 — AI Chat (Mutual NDA only)
-- `/` — Single-page split layout: AI chat panel (left, 42%) + live NDA document preview (right, 58%) with mobile tab switching
-- **Backend**: `POST /api/chat` using LiteLLM (`openrouter/openai/gpt-oss-120b` via Cerebras) with structured output (`NdaAiResponse`). Dynamic system prompt tracks filled vs empty fields. Message history capped at 40 turns.
-- **Frontend components**: `ChatPanel.tsx` (messages, input, send), `NdaPreviewPanel.tsx` (wraps `NdaPreview` + `PdfDownloadButton`)
-- **Data layer**: `nda-fields-mapper.ts` converts between nested `NdaFormData` (frontend) and flat snake_case `NdaFields` (backend) with runtime enum validation; `chat-api.ts` wraps the fetch call
-- `NdaPreview.tsx` and `PdfDownloadButton.tsx` reused unchanged — preview updates live as AI fills fields
+### Tests
 
-### PREL-6 — Expand to all supported legal document types
-- **Document registry** (`backend/app/document_registry.py`): Central source of truth for all 11 document types (all catalog entries except the NDA Cover Page companion). Each entry has doc_id, display_name, template filename, field definitions with labels/hints/allowed_values, and system prompt intro.
-- **Generic chat endpoint** (`POST /api/chat`): Two-phase flow — (1) document selection phase (AI identifies doc type from conversation), (2) field collection phase (AI collects fields per registry definition). Dynamic Pydantic models via `create_model()` for LLM structured output. System prompt always instructs AI to ask follow-on questions.
-- **Template serving** (`GET /api/templates/{doc_id}`, `GET /api/templates/catalog`): Serves raw markdown templates and catalog list.
-- **Generic frontend**: `page.tsx` manages generic `Record<string, string>` field state + `documentType` (null until AI selects). `DocPreviewPanel.tsx` routes NDA to legacy `NdaPreview` and all other types to `TemplateRenderer`.
-- **TemplateRenderer** (`frontend/components/TemplateRenderer.tsx`): Fetches markdown template, parses `<span class="*_link">` field-reference elements, interpolates field values inline, renders cover page section + standard terms. Handles `keyterms_link`, `coverpage_link`, `orderform_link`, `businessterms_link` span classes.
-- **UX enhancements**: Auto-focus textarea after AI response (`ChatPanel.tsx`). AI always asks follow-on questions via system prompt instructions.
-- **Docker**: `Dockerfile` updated to include `templates/` and `catalog.json` in the image.
-- 128 tests total (101 frontend + 27 backend)
+- **Frontend**: 124 tests (Jest + React Testing Library) in `frontend/__tests__/`
+  - `ChatPanel.test.tsx`, `NdaPreview.test.tsx`, `NdaForm.test.tsx`, `DocPreviewPanel.test.tsx`
+  - `DocumentsSidebar.test.tsx`, `DraftDisclaimer.test.tsx`, `SignInPromptModal.test.tsx`
+  - `nda-types.test.ts`, `nda-fields-mapper.test.ts`, `doc-types.test.ts`, `chat-api.test.ts`
+  - `auth-context.test.tsx`, `documents-api.test.ts`
+- **Backend**: 38 tests (pytest) in `backend/tests/`
+  - `test_document_registry.py` — registry completeness, field uniqueness, template existence
+  - `test_chat.py` — prompt building, dynamic model creation, field parsing
+  - `test_template_router.py` — catalog and template serving endpoints
+  - `test_documents.py` — documents CRUD, auth enforcement, cross-user isolation, ordering
+- Playwright e2e config present (baseURL `http://localhost:3001`, not actively maintained)
+
+## Implementation History
+
+- **PREL-3**: Mutual NDA Creator frontend prototype (NdaForm.tsx, NdaPreview.tsx, /preview route)
+- **PREL-4**: V1 technical foundation (FastAPI, auth, Docker, scripts, static export)
+- **PREL-5**: AI chat for Mutual NDA only (single-doc chat endpoint, NDA-specific types)
+- **PREL-6**: Expanded to all 11 supported document types (document registry, generic chat endpoint, TemplateRenderer, auto-focus fix, follow-on question behavior)
+- **PREL-7**: Multi-user support & final polish (documents sidebar + auto-save, JWT auth enforcement via `get_current_user`, AuthContext/useAuth, DraftDisclaimer footer, SignInPromptModal, canonical color scheme migration, header sign-in/out)

@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, status
-from jose import jwt
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -10,6 +11,7 @@ from app.schemas import SignInRequest, SignUpRequest, TokenResponse
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_bearer = HTTPBearer(auto_error=False)
 
 _MIN_PASSWORD_LENGTH = 8
 
@@ -73,3 +75,29 @@ def signin(request: SignInRequest):
         )
 
     return TokenResponse(access_token=_create_token(request.email))
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> str:
+    """FastAPI dependency that extracts and verifies the JWT, returning the user email."""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.secret_key,
+            algorithms=[settings.algorithm],
+        )
+        email: str | None = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
+        return email
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )

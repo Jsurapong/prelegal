@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
+import DraftDisclaimer from "@/components/DraftDisclaimer";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -18,16 +20,19 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Mutual NDA Creator — Prelegal",
+  title: "Prelegal — Legal Document Creator",
   description:
-    "Generate a Mutual Non-Disclosure Agreement in minutes. Fill in the details, preview, and download a ready-to-sign PDF.",
+    "Draft legal agreements in minutes with AI. NDAs, cloud service agreements, data processing agreements, and more.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
       <body className="font-sans bg-parchment-texture min-h-screen text-navy-dark">
-        {children}
+        <AuthProvider>
+          {children}
+          <DraftDisclaimer />
+        </AuthProvider>
       </body>
     </html>
   );

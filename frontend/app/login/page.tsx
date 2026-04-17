@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,7 +37,7 @@ export default function LoginPage() {
         setError("Sign in failed. Please try again.");
         return;
       }
-      localStorage.setItem("token", data.access_token);
+      login(data.access_token);
       router.push("/");
     } catch {
       setError("Connection error. Please check the server is running.");
@@ -111,7 +113,7 @@ export default function LoginPage() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
-                className="text-navy underline decoration-brass/50 underline-offset-2 hover:text-brass transition-colors"
+                className="text-blue-primary underline underline-offset-2 hover:text-blue-primary/80 transition-colors"
               >
                 Sign up
               </Link>

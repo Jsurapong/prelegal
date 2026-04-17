@@ -12,6 +12,7 @@ from app.chat import router as chat_router
 from app.config import settings
 from app.database import init_db
 from app.document_registry import validate_registry
+from app.documents import router as documents_router
 from app.template_router import router as template_router
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat_router, prefix="/api/chat", tags=["chat"])
+app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
 app.include_router(template_router, prefix="/api/templates", tags=["templates"])
 
 

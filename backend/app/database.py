@@ -34,4 +34,16 @@ def init_db() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_email TEXT NOT NULL,
+                title TEXT NOT NULL,
+                document_type TEXT NOT NULL,
+                doc_fields_json TEXT NOT NULL DEFAULT '{}',
+                messages_json TEXT NOT NULL DEFAULT '[]',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         conn.commit()

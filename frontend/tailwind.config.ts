@@ -10,9 +10,19 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#15274a",
+          DEFAULT: "#032147",
           light: "#1e3a6e",
-          dark: "#0d1a33",
+          dark: "#021535",
+        },
+        blue: {
+          primary: "#209dd7",
+        },
+        purple: {
+          DEFAULT: "#753991",
+          dark: "#5e2c75",
+        },
+        yellow: {
+          accent: "#ecad0a",
         },
         brass: {
           DEFAULT: "#b5821a",

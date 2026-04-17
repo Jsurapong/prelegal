@@ -27,14 +27,14 @@ body {
 /* Document-style input focus */
 .field-input:focus {
   outline: none;
-  border-color: #15274a;
+  border-color: #032147;
   box-shadow: 0 0 0 3px rgba(21, 39, 74, 0.08);
 }
 
 /* Animated underline for section headers */
 .section-rule {
   height: 2px;
-  background: linear-gradient(90deg, #15274a 0%, #b5821a 50%, transparent 100%);
+  background: linear-gradient(90deg, #032147 0%, #b5821a 50%, transparent 100%);
 }
 
 /* Smooth page transitions */
